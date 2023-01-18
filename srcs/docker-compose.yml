@@ -1,0 +1,67 @@
+services:
+
+  nginx:
+    build: requirements/nginx
+    ports: "443:443"
+    image: nginx:inception
+    volumes: wordpress_vol:/var/www/html
+    restart: always
+    networks: inception
+    env_file: .env
+    depends_on:
+      wordpress:
+        condition: healthy
+      mariadb:
+        condition: healthy
+
+  wordpress:
+    build: requirements/wordpress
+    image: wordpress:inception
+    volumes: wordpress_vol:/var/www/html
+    restart: always
+    networks: inception
+    env_file: .env
+    depends_on:
+      mariadb:
+        condition: healthy
+    healthcheck:
+      test: ['CMD', 'wp', 'core', 'is-installed']
+      interval: 1m
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  mariadb:
+    build: requirements/mariadb
+    image: mariadb:inception
+    volumes: mariadb_vol:/var/lib/mysql
+    restart: always
+    networks: inception
+    env_file: .env
+    healthcheck:
+      test: [ 'CMD', 'mysqladmin', 'ping', '-u', 'root', '-p${PW}' ]
+      interval: 1m
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+
+networks:
+  inception:
+    name: inception
+
+volumes:
+  mariadb_vol:
+    name: mariadb_vol
+    driver: local
+    driver_opts:
+      device: /home/hskowron/data/mariadb
+      type: none
+      o: bind
+
+  wordpress_vol:
+    name: wordpress_vol
+    driver: local
+    driver_opts:
+      device: /home/hskowron/data/wordpress
+      type: none
+      o: bind
